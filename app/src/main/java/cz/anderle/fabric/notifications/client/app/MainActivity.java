@@ -18,6 +18,8 @@ import org.json.JSONObject;
 import java.text.DateFormat;
 import java.util.*;
 
+import cz.anderle.fabric.notifications.client.app.model.Event;
+
 public class MainActivity extends Activity {
     private EditText title;
     private TextView selected, warning;
@@ -88,7 +90,7 @@ public class MainActivity extends Activity {
                 Intent i = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName());
                 startActivity(i);
             });
-        } else if (!Alarms.allowed(this)) {
+        } else if (Alarms.notAllowed(this)) {
             warning.setText("Pro včasné připomenutí povol přesná upozornění. Klepnutím otevřeš nastavení.");
             warning.setVisibility(View.VISIBLE);
             warning.setOnClickListener(v -> {
@@ -108,7 +110,7 @@ public class MainActivity extends Activity {
             Toast.makeText(this, "Vyber čas v budoucnosti", Toast.LENGTH_LONG).show();
             return;
         }
-        if (!Alarms.allowed(this)) {
+        if (Alarms.notAllowed(this)) {
             updateWarning();
             Toast.makeText(this, "Nejprve povol přesná upozornění", Toast.LENGTH_LONG).show();
             return;
@@ -119,14 +121,15 @@ public class MainActivity extends Activity {
             return;
         }
         try {
-            JSONArray items = Store.read(this);
-            JSONObject item = new JSONObject();
-            item.put("id", UUID.randomUUID().toString());
-            item.put("title", text);
-            item.put("time", date.getTimeInMillis());
-            items.put(item);
-            Store.write(this, items);
-            Alarms.schedule(this, item);
+            var events = Store.read(this);
+            var event = new Event(
+                    UUID.randomUUID(),
+                    text,
+                    date.getTimeInMillis());
+            events.add(event);
+
+            Store.write(this, events);
+            Alarms.schedule(this, event);
             title.setText("");
             refresh();
             Toast.makeText(this, "Připomínka uložena", Toast.LENGTH_SHORT).show();
@@ -138,27 +141,28 @@ public class MainActivity extends Activity {
     private void refresh() {
         list.removeAllViews();
         try {
-            JSONArray a = Store.read(this);
-            ArrayList<JSONObject> items = new ArrayList<>();
-            for (int i = 0; i < a.length(); i++) items.add(a.getJSONObject(i));
-            Collections.sort(items, (x, y) -> Long.compare(x.optLong("time"), y.optLong("time")));
-            if (items.isEmpty()) {
+            var events = Store.read(this);
+            events.sort(Comparator.comparingLong(Event::time));
+
+            if (events.isEmpty()) {
                 TextView empty = new TextView(this);
                 empty.setText("Zatím tu nic není.");
                 list.addView(empty);
             }
-            for (JSONObject item : items) {
+
+            for (var event : events) {
                 View row = LayoutInflater.from(this).inflate(R.layout.item_event, list, false);
                 TextView label = row.findViewById(R.id.eventLabel);
                 Button delete = row.findViewById(R.id.deleteButton);
-                long when = item.getLong("time");
-                label.setText(item.getString("title") + "\n"
+                long when = event.time();
+
+                label.setText(event.title() + "\n"
                         + DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(new Date(when))
                         + (when <= System.currentTimeMillis() ? " · proběhlo" : ""));
                 delete.setOnClickListener(v -> new AlertDialog.Builder(this)
                         .setMessage("Smazat tuto událost?")
                         .setNegativeButton("Zrušit", null)
-                        .setPositiveButton("Smazat", (d, w) -> remove(item.optString("id")))
+                        .setPositiveButton("Smazat", (d, w) -> remove(event))
                         .show());
                 list.addView(row);
             }
@@ -167,16 +171,14 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void remove(String id) {
+    private void remove(Event event) {
         try {
-            JSONArray a = Store.read(this), b = new JSONArray();
-            for (int i = 0; i < a.length(); i++) {
-                JSONObject item = a.getJSONObject(i);
-                if (!id.equals(item.getString("id"))) b.put(item);
-            }
-            Store.write(this, b);
-            Alarms.cancel(this, id);
-            getSystemService(NotificationManager.class).cancel(id.hashCode());
+            var events = Store.read(this);
+
+            events.remove(event);
+            Store.write(this, events);
+            Alarms.cancel(this, event);
+            getSystemService(NotificationManager.class).cancel(event.id().hashCode());
             refresh();
         } catch (Exception e) {
             error(e);

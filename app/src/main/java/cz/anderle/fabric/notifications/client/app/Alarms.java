@@ -7,93 +7,65 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
 
-import org.json.JSONArray;
-import org.json.JSONObject;
+import java.util.UUID;
 
-final class Alarms {
+import cz.anderle.fabric.notifications.client.app.config.OffsetConfig;
+import cz.anderle.fabric.notifications.client.app.config.UriConfig;
+import cz.anderle.fabric.notifications.client.app.model.Event;
+import cz.anderle.fabric.notifications.client.app.receiver.ReminderReceiver;
 
-    private static final long HOUR = 60L * 60 * 1000;
-    private static final long DAY = 24L * HOUR;
+public final class Alarms {
 
-    private static final long[] OFFSETS = {
-            7L * DAY,
-            DAY,
-            2 * HOUR,
-            HOUR,
-            0L
-    };
-
-    static boolean allowed(Context c) {
-        return Build.VERSION.SDK_INT < 31 || c.getSystemService(AlarmManager.class).canScheduleExactAlarms();
+    public static boolean notAllowed(Context c) {
+        return Build.VERSION.SDK_INT >= 31 && !c.getSystemService(AlarmManager.class).canScheduleExactAlarms();
     }
 
-    static PendingIntent intent(Context c, String id, long offset) {
-        Uri uri = Uri.parse("fabric.notifications://event/" + id)
+    public static PendingIntent intent(Context c, UUID id, int offsetIndex) {
+        Uri uri = Uri.parse(UriConfig.URI + id)
                 .buildUpon()
-                .appendQueryParameter("offset", String.valueOf(offset))
+                .appendQueryParameter(UriConfig.OFFSET, String.valueOf(offsetIndex))
                 .build();
 
         Intent i = new Intent(c, ReminderReceiver.class)
                 .setData(uri);
 
-        return PendingIntent.getBroadcast(
-                c,
-                0,
-                i,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
-        );
+        return PendingIntent.getBroadcast(c,0, i,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
-    static void schedule(Context c, JSONObject item) throws Exception {
-        if (!allowed(c)) {
+    public static void schedule(Context c, Event event) {
+        if (notAllowed(c)) {
             return;
         }
 
-        long eventTime = item.getLong("time");
-        String id = item.getString("id");
         AlarmManager manager = c.getSystemService(AlarmManager.class);
 
-        for (long offset : OFFSETS) {
-            long reminderTime = eventTime - offset;
+        for (int i = 0; i < OffsetConfig.OFFSETS.size(); i++) {
+            var offset = OffsetConfig.OFFSETS.get(i);
+            long reminderTime = event.time() - offset.value();
 
             if (reminderTime > System.currentTimeMillis()) {
                 manager.setExactAndAllowWhileIdle(
                         AlarmManager.RTC_WAKEUP,
                         reminderTime,
-                        intent(c, id, offset)
+                        intent(c, event.id(), i)
                 );
             }
         }
     }
 
-    static void cancel(Context c, String id) {
+    public static void cancel(Context c, Event event) {
         AlarmManager manager = c.getSystemService(AlarmManager.class);
 
-        for (long offset : OFFSETS) {
-            manager.cancel(intent(c, id, offset));
+        for (int i = 0; i < OffsetConfig.OFFSETS.size(); i++) {
+            manager.cancel(intent(c, event.id(), i));
         }
-
-        // Zrušit také původní alarm vytvořený před touto změnou.
-        Intent oldIntent = new Intent(c, ReminderReceiver.class)
-                .setData(Uri.parse("fabric.notifications://event/" + id));
-
-        PendingIntent oldPendingIntent = PendingIntent.getBroadcast(
-                c,
-                0,
-                oldIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
-        );
-
-        manager.cancel(oldPendingIntent);
     }
 
-    static void reschedule(Context c) throws Exception {
-        JSONArray items = Store.read(c);
-
-        for (int i = 0; i < items.length(); i++) {
-            JSONObject item = items.getJSONObject(i);
-            cancel(c, item.getString("id"));
-            schedule(c, item);
+    public static void reschedule(Context c) throws Exception {
+        for (var event : Store.read(c)) {
+            cancel(c, event);
+            schedule(c, event);
         }
     }
 }
