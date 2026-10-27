@@ -17,6 +17,20 @@ public class ReminderReceiver extends BroadcastReceiver {
     public void onReceive(Context c, Intent intent) {
         if (intent.getData() == null) return;
         String id = intent.getData().getLastPathSegment();
+        String offset = intent.getData().getQueryParameter("offset");
+        String notificationTitle;
+
+        if (String.valueOf(7L * 24 * 60 * 60 * 1000).equals(offset)) {
+            notificationTitle = "Za týden";
+        } else if (String.valueOf(24L * 60 * 60 * 1000).equals(offset)) {
+            notificationTitle = "Zítra";
+        } else if (String.valueOf(60L * 60 * 1000).equals(offset)) {
+            notificationTitle = "Za hodinu";
+        } else {
+            // Platí i pro původní alarmy, které nemají parametr offset.
+            notificationTitle = "Teď";
+        }
+
         try {
             JSONArray a = Store.read(c);
             for (int i = 0; i < a.length(); i++) {
@@ -26,7 +40,7 @@ public class ReminderReceiver extends BroadcastReceiver {
                 manager.createNotificationChannel(new NotificationChannel("fabric.reminders", "Připomínky", NotificationManager.IMPORTANCE_HIGH));
                 PendingIntent open = PendingIntent.getActivity(c, 0, new Intent(c, MainActivity.class), PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
                 Notification notification = new Notification.Builder(c, "fabric.reminders").setSmallIcon(android.R.drawable.ic_dialog_info)
-                        .setContentTitle("Připomínka").setContentText(item.getString("title"))
+                        .setContentTitle(notificationTitle).setContentText(item.getString("title"))
                         .setStyle(new Notification.BigTextStyle().bigText(item.getString("title")))
                         .setContentIntent(open).setAutoCancel(true).build();
                 manager.notify(id.hashCode(), notification);

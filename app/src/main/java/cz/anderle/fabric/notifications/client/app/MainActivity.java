@@ -23,7 +23,6 @@ public class MainActivity extends Activity {
     private TextView selected, warning;
     private LinearLayout list;
     private final Calendar date = Calendar.getInstance();
-    private boolean resumedOnce;
 
     @Override
     public void onCreate(Bundle b) {
@@ -62,12 +61,11 @@ public class MainActivity extends Activity {
         if (list != null) {
             refresh();
             updateWarning();
-            if (resumedOnce) try {
+            try {
                 Alarms.reschedule(this);
             } catch (Exception e) {
                 error(e);
             }
-            resumedOnce = true;
         }
     }
 
