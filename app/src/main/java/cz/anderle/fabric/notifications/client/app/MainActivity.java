@@ -1,7 +1,11 @@
 package cz.anderle.fabric.notifications.client.app;
 
 import android.Manifest;
-import android.app.*;
+import android.app.Activity;
+import android.app.AlertDialog;
+import android.app.DatePickerDialog;
+import android.app.NotificationManager;
+import android.app.TimePickerDialog;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
@@ -10,13 +14,17 @@ import android.os.Bundle;
 import android.provider.Settings;
 import android.view.LayoutInflater;
 import android.view.View;
-import android.widget.*;
-
-import org.json.JSONArray;
-import org.json.JSONObject;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+import android.widget.Toast;
 
 import java.text.DateFormat;
-import java.util.*;
+import java.util.Calendar;
+import java.util.Comparator;
+import java.util.Date;
+import java.util.UUID;
 
 import cz.anderle.fabric.notifications.client.app.model.Event;
 
@@ -157,8 +165,8 @@ public class MainActivity extends Activity {
                 long when = event.time();
 
                 label.setText(event.title() + "\n"
-                        + DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(new Date(when))
-                        + (when <= System.currentTimeMillis() ? " · proběhlo" : ""));
+                                      + DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(new Date(when))
+                                      + (when <= System.currentTimeMillis() ? " · proběhlo" : ""));
                 delete.setOnClickListener(v -> new AlertDialog.Builder(this)
                         .setMessage("Smazat tuto událost?")
                         .setNegativeButton("Zrušit", null)

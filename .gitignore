@@ -1,0 +1,47 @@
+
+# Android Studio / IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Gradle
+.gradle/
+**/build/
+build/
+
+# Local configuration
+local.properties
+
+# Android generated files
+.cxx/
+.externalNativeBuild/
+captures/
+*.apk
+*.aab
+*.ap_
+
+# Signing keys - NEVER commit
+*.jks
+*.keystore
+*.p12
+*.pfx
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+*.hprof
+
+# Operating system
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editor configuration
+.vscode/
+
+# Java
+*.class
+hs_err_pid*
+replay_pid*

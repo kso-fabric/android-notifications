@@ -29,8 +29,8 @@ public final class Alarms {
         Intent i = new Intent(c, ReminderReceiver.class)
                 .setData(uri);
 
-        return PendingIntent.getBroadcast(c,0, i,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        return PendingIntent.getBroadcast(c, 0, i,
+                                          PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
     public static void schedule(Context c, Event event) {
